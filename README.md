@@ -1,2 +1,2 @@
 # ExtravagantMelody-CoffeeShop
-Coffee shop app implemented using Hyperledger Fabric/
+Coffee shop app implemented using Hyperledger Fabric.
