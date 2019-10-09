@@ -115,7 +115,6 @@ export class CoffeeController extends ConvectorController<ChaincodeTx> {
     await batch.save();
   }
 
-
   @Invokable()
   public async getToastBatch(//by the id
     @Param(yup.string())
