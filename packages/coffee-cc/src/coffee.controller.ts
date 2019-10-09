@@ -8,63 +8,112 @@ import {
   FlatConvectorModel
 } from '@worldsibu/convector-core';
 
-// import { Participant } from 'participant-cc';
+import { Participant } from 'participant-cc';
 
-// import { CoffeeGrainBatch } from './grain-batch.model';
+import { CoffeeGrainBatch } from './grain-batch.model';
 import { CoffeeToastBatch } from './toast-batch.model';
-// import { CoffeeGrainPortionBatch } from './grain-batch-portion.model';
+import { CoffeeGrainPortionBatch } from './grain-batch-portion.model';
 
 @Controller('coffee')
 export class CoffeeController extends ConvectorController<ChaincodeTx> {
 
-  
-  // @Invokable()
-  // public async createToastBatch(
-  //   @Param(CoffeeToastBatch)
-  //   batch: CoffeeToastBatch,
-  //   @Param(yup.array(CoffeeGrainPortionBatch.schema()))
-  //   composition: FlatConvectorModel<CoffeeGrainPortionBatch>[]//get an array of GrainPortionBatch to tell us what is the copmosition of each toast batch 
-  // ) {
-  //   const existing = await CoffeeToastBatch.getOne(batch.id);
-  //   if (existing.id) {//if there is already existiing toast batch with this id
-  //     throw new Error(`Batch with id ${batch.id} has been already registered`);
-  //   }
+   @Invokable()
+  public async createGrainBatch(
+    @Param(CoffeeGrainBatch)
+    batch: CoffeeGrainBatch
+  ) {
+    const existing = await CoffeeGrainBatch.getOne(batch.id);
+    if (existing.id) {
+      throw new Error(`Batch with id ${batch.id} has been already registered`);
+    }
 
-  //   let weigth = 0;//the new created toast batch will start with 0 weigth
-  //   batch.composition = [];//the composition of the toast batch
+    const creator = await Participant.getFromFingerpring(this.sender);
+    batch.owner = creator.id;
 
+    await batch.save();
+  }
 
-  //   await Promise.all( composition.map(async portion => {//mapping into all the composition portions
-      
-  //     const grainBatch = await CoffeeGrainBatch.getOne(portion.grainBatchId);//get the grain batch dependeing on portion Id
-  //     const consumedPortions = await CoffeeGrainPortionBatch.getByGrainBatchId(portion.grainBatchId);//get the all the consumed grain portions so we can make sure itsn't double spended
-  //     const remainingPortion = grainBatch.weight - //the original weight
-  //                                                 consumedPortions.reduce( //sum of the already consumedPortions weight
-  //                                                                       (total, p) => total + p.weight, 0);//finally we get the remianing portion
+  @Invokable()
+  public async getGrainBatch(
+    @Param(yup.string())
+    batchId: string
+  ) {
+    const batch = await CoffeeGrainBatch.getOne(batchId);
+    if (!batch.id) {
+      throw new Error(`No batch found with id ${batch.id}`);
+    }
 
-  //     if (portion.weight > remainingPortion) {//*** validation to validate that the portion weight is available
-  //       throw new Error(`Portion from batch ${portion.grainBatchId} exceeds the limits`);
-  //     }
+    return batch.toJSON() as CoffeeGrainBatch;
+  }
 
-  //     const postionModel = new CoffeeGrainPortionBatch({
-  //       ...portion,
-  //       id: `${portion.grainBatchId}_${batch.id}`,//the id will be composed of the portionID_batchId
-  //       toastBatchId: batch.id
-  //     });
+  @Invokable()
+  public async getAllGrainBatches() {
+    return (await CoffeeGrainBatch.getAll()).map(p => p.toJSON() as CoffeeGrainBatch);
+  }
 
-  //     batch.composition.push(postionModel.id);//push the postion into the toast batch
-  //     weigth += portion.weight;//Let the total weight increased by each portion added
-  //     await postionModel.save();//Then resolved 
-  //   }));
+  @Invokable()
+  public async sellGrainBatch(
+    @Param(yup.string())
+    batchId: string,
+    @Param(yup.string())
+    to: string
+  ) {
+    const batch = await CoffeeGrainBatch.getOne(batchId);
+    if (!batch.id) {
+      throw new Error(`No batch found with id ${batch.id}`);
+    }
 
-  //   const creator = await Participant.getFromFingerpring(this.sender);//set the owner to the function sender  
-    
-  //   batch.weigth = weigth;//set the batch weight
-  //   batch.prducer = creator.id;//set the batch producer to the one who create this toast batch
-  //   batch.owner = creator.id;//set the batch owner to the one who create this toast batch
+    const sender = await Participant.getFromFingerpring(this.sender);
+    if (batch.owner !== sender.id) {
+      throw new Error(`Only the participant ${sender.id} can sell the batch ${batchId}`);
+    }
 
-  //   await batch.save();//save the batch to the ledger
-  // }
+    batch.owner = to;
+    await batch.save();
+  }
+
+  @Invokable()
+  public async createToastBatch(
+    @Param(CoffeeToastBatch)
+    batch: CoffeeToastBatch,
+    @Param(yup.array(CoffeeGrainPortionBatch.schema()))
+    composition: FlatConvectorModel<CoffeeGrainPortionBatch>[]
+  ) {
+    const existing = await CoffeeToastBatch.getOne(batch.id);
+    if (existing.id) {
+      throw new Error(`Batch with id ${batch.id} has been already registered`);
+    }
+
+    let weigth = 0;
+    batch.composition = [];
+
+    await Promise.all(composition.map(async portion => {
+      const grainBatch = await CoffeeGrainBatch.getOne(portion.grainBatchId);
+      const consumedPortions = await CoffeeGrainPortionBatch.getByGrainBatchId(portion.grainBatchId);
+      const remainingPortion = grainBatch.weight - consumedPortions.reduce((total, p) => total + p.weight, 0);
+
+      if (portion.weight > remainingPortion) {
+        throw new Error(`Portion from batch ${portion.grainBatchId} exceeds the limits`);
+      }
+
+      const postionModel = new CoffeeGrainPortionBatch({
+        ...portion,
+        id: `${portion.grainBatchId}_${batch.id}`,
+        toastBatchId: batch.id
+      });
+
+      batch.composition.push(postionModel.id);
+      weigth += portion.weight;
+      await postionModel.save();
+    }));
+
+    const creator = await Participant.getFromFingerpring(this.sender);
+    batch.weigth = weigth;
+    batch.prducer = creator.id;
+    batch.owner = creator.id;
+
+    await batch.save();
+  }
 
 
   @Invokable()
