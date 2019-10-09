@@ -17,55 +17,6 @@ import { CoffeeToastBatch } from './toast-batch.model';
 @Controller('coffee')
 export class CoffeeController extends ConvectorController<ChaincodeTx> {
 
-  
-  // @Invokable()
-  // public async createToastBatch(
-  //   @Param(CoffeeToastBatch)
-  //   batch: CoffeeToastBatch,
-  //   @Param(yup.array(CoffeeGrainPortionBatch.schema()))
-  //   composition: FlatConvectorModel<CoffeeGrainPortionBatch>[]//get an array of GrainPortionBatch to tell us what is the copmosition of each toast batch 
-  // ) {
-  //   const existing = await CoffeeToastBatch.getOne(batch.id);
-  //   if (existing.id) {//if there is already existiing toast batch with this id
-  //     throw new Error(`Batch with id ${batch.id} has been already registered`);
-  //   }
-
-  //   let weigth = 0;//the new created toast batch will start with 0 weigth
-  //   batch.composition = [];//the composition of the toast batch
-
-
-  //   await Promise.all( composition.map(async portion => {//mapping into all the composition portions
-      
-  //     const grainBatch = await CoffeeGrainBatch.getOne(portion.grainBatchId);//get the grain batch dependeing on portion Id
-  //     const consumedPortions = await CoffeeGrainPortionBatch.getByGrainBatchId(portion.grainBatchId);//get the all the consumed grain portions so we can make sure itsn't double spended
-  //     const remainingPortion = grainBatch.weight - //the original weight
-  //                                                 consumedPortions.reduce( //sum of the already consumedPortions weight
-  //                                                                       (total, p) => total + p.weight, 0);//finally we get the remianing portion
-
-  //     if (portion.weight > remainingPortion) {//*** validation to validate that the portion weight is available
-  //       throw new Error(`Portion from batch ${portion.grainBatchId} exceeds the limits`);
-  //     }
-
-  //     const postionModel = new CoffeeGrainPortionBatch({
-  //       ...portion,
-  //       id: `${portion.grainBatchId}_${batch.id}`,//the id will be composed of the portionID_batchId
-  //       toastBatchId: batch.id
-  //     });
-
-  //     batch.composition.push(postionModel.id);//push the postion into the toast batch
-  //     weigth += portion.weight;//Let the total weight increased by each portion added
-  //     await postionModel.save();//Then resolved 
-  //   }));
-
-  //   const creator = await Participant.getFromFingerpring(this.sender);//set the owner to the function sender  
-    
-  //   batch.weigth = weigth;//set the batch weight
-  //   batch.prducer = creator.id;//set the batch producer to the one who create this toast batch
-  //   batch.owner = creator.id;//set the batch owner to the one who create this toast batch
-
-  //   await batch.save();//save the batch to the ledger
-  // }
-
 
   @Invokable()
   public async getToastBatch(//by the id
